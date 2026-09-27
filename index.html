@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Controle de Produção</title>
+<style>
+  :root{
+    --bg:#EEF1F4; --panel:#FFFFFF; --border:#DCE1E8;
+    --text:#1B2430; --muted:#5B6472;
+    --accent-light:#EAF1F8;
+    --ok:#1E8E5A; --ok-bg:#E7F5EE;
+    --warn:#B8720A; --warn-bg:#FBF0DD;
+    --crit:#C0392B; --crit-bg:#FBE7E4;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);}
+  header{background:var(--accent);color:#fff;padding:22px 28px;}
+  header h1{margin:0;font-size:20px;font-weight:600;}
+  header p{margin:4px 0 0;font-size:13px;color:#C9D9E8;}
+  main{max-width:1080px;margin:0 auto;padding:24px 20px 60px;}
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start;}
+  @media(max-width:800px){.grid{grid-template-columns:1fr;}}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:20px;}
+  .card h2{margin:0 0 14px;font-size:15px;font-weight:600;}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;}
+  input,select{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:#fff;color:var(--text);}
+  input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;}
+  input:disabled{background:#F2F4F6;color:var(--muted);}
+  .row{display:flex;gap:10px;}
+  .row > div{flex:1;}
+  .actions{display:flex;gap:10px;margin-top:16px;}
+  button{cursor:pointer;border:none;border-radius:6px;padding:9px 16px;font-size:14px;font-weight:600;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-primary:hover{background:#173d5e;}
+  .btn-text{background:none;color:var(--muted);padding:9px 6px;}
+  .btn-text:hover{color:var(--text);}
+  .escondido{display:none !important;}
+  .filtros{display:flex;gap:10px;margin-bottom:14px;}
+  .filtros select{width:auto;min-width:150px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--border);}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em;}
+  td.codigo{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+  .vazio{color:var(--muted);text-align:center;padding:24px 0;}
+  .badge{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+  .badge-normal{background:var(--ok-bg);color:var(--ok);}
+  .badge-alto{background:var(--warn-bg);color:var(--warn);}
+  .badge-critico{background:var(--crit-bg);color:var(--crit);}
+  .btn-icon{background:none;padding:4px 6px;font-size:14px;}
+  .btn-icon:hover{background:var(--accent-light);border-radius:4px;}
+  .aviso{margin:0 0 16px;padding:10px 14px;background:var(--crit-bg);color:var(--crit);border-radius:6px;font-size:13px;}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:18px;}
+  .stat{background:var(--accent-light);border-radius:8px;padding:14px;}
+  .stat span{display:block;}
+  .stat .valor{font-size:20px;font-weight:700;color:var(--accent);}
+  .stat .rotulo{font-size:12px;color:var(--muted);margin-top:2px;}
+  .secao{margin-top:24px;}
+  footer{text-align:center;color:var(--muted);font-size:12px;padding:20px;}
+</style>
+</head>
+<body>
+
+
+<main>
+  <div id="avisoErro" class="aviso escondido"></div>
+
+  <div class="grid">
+    <div class="card">
+      <h2 id="tituloForm">Nova ordem de produção</h2>
+      <form id="formOrdem">
+        <label for="codigoOrdem">Código da ordem</label>
+        <input id="codigoOrdem" required placeholder="OP123">
+
+        <label for="codigoProduto">Código do produto</label>
+        <input id="codigoProduto" required placeholder="PC-4501">
+
+        <label for="tipoProduto">Tipo de produto</label>
+        <select id="tipoProduto">
+          <option value="1">1 — Padrão</option>
+          <option value="2">2 — Premium</option>
+          <option value="3">3 — Sob encomenda</option>
+        </select>
+
+        <div class="row">
+          <div>
+            <label for="quantidadeProduzida">Qtd. produzida</label>
+            <input id="quantidadeProduzida" type="number" min="0" required>
+          </div>
+          <div>
+            <label for="estoqueInicial">Estoque inicial</label>
+            <input id="estoqueInicial" type="number" min="0" required>
+          </div>
+        </div>
+
+        <label for="custoUnitarioBase">Custo unitário base (R$)</label>
+        <input id="custoUnitarioBase" type="number" min="0" step="0.01" required>
+
+        <div class="actions">
+          <button type="submit" class="color blue " id="btnSalvar">Cadastrar ordem</button>
+          <button type="button" class="btn-text escondido" id="btnCancelar" onclick="cancelarEdicao()">Cancelar edição</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Ordens cadastradas</h2>
+      <div class="filtros">
+        <select id="filtroTipo" onchange="carregarOrdens()">
+          <option value="">Todos os tipos</option>
+          <option value="1">Padrão</option>
+          <option value="2">Premium</option>
+          <option value="3">Sob encomenda</option>
+        </select>
+        <select id="filtroAlerta" onchange="carregarOrdens()">
+          <option value="">Todos os alertas</option>
+          <option value="NORMAL">Normal</option>
+          <option value="ALTO">Alto</option>
+          <option value="CRITICO">Crítico</option>
+        </select>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Ordem</th><th>Produto</th><th>Tipo</th><th>Qtd.</th>
+            <th>Estoque final</th><th>Custo unit.</th><th>Custo total</th><th>Alerta</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="tbodyOrdens"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="secao card">
+    <h2>Relatório 
+      <button class="btn-text" style="float:right" onclick="carregarRelatorio()">Atualizar relatório</button>
+    </h2>
+    <div id="relatorioBox" class="escondido">
+      <div class="stats">
+        <div class="stat"><span class="valor" id="totalOrdens">0</span><span class="rotulo">Total de ordens</span></div>
+        <div class="stat"><span class="valor" id="mediaCusto">R$ 0</span><span class="rotulo">Custo médio/ordem</span></div>
+        <div class="stat"><span class="valor" id="estoquePadrao">0</span><span class="rotulo">Estoque Padrão</span></div>
+        <div class="stat"><span class="valor" id="estoquePremium">0</span><span class="rotulo">Estoque Premium</span></div>
+        <div class="stat"><span class="valor" id="estoqueSobEncomenda">0</span><span class="rotulo">Estoque Sob encomenda</span></div>
+        <div class="stat"><span class="valor" id="alertaAlto">0</span><span class="rotulo">Alertas ALTO</span></div>
+        <div class="stat"><span class="valor" id="alertaCritico">0</span><span class="rotulo">Alertas CRÍTICO</span></div>
+        <div class="stat"><span class="valor" id="alertaNormal">0</span><span class="rotulo">Alertas NORMAL</span></div>
+      </div>
+      <p><strong>Ordem mais cara:</strong> <span id="maisCara">-</span> &nbsp;·&nbsp; <strong>Ordem mais barata:</strong> <span id="maisBarata">-</span></p>
+      <table>
+        <thead><tr><th>Produto</th><th>Estoque final</th><th>Valor total investido</th></tr></thead>
+        <tbody id="tbodyProdutos"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+
+<script>
+const API = 'http://localhost:3000';
+let editando = null;
+
+function mostrarErro(msg){
+  const el = document.getElementById('avisoErro');
+  el.textContent = msg;
+  el.classList.remove('escondido');
+  setTimeout(()=>el.classList.add('escondido'), 5000);
+}
+function nomeTipo(t){ return {1:'Padrão',2:'Premium',3:'Sob encomenda'}[t] || t; }
+
+async function carregarOrdens(){
+  const tipo = document.getElementById('filtroTipo').value;
+  const alerta = document.getElementById('filtroAlerta').value;
+  const params = [];
+  if(tipo) params.push('tipo='+tipo);
+  if(alerta) params.push('alerta='+alerta);
+  let url = API+'/ordens'+(params.length?'?'+params.join('&'):'');
+  try{
+    const res = await fetch(url);
+    renderTabela(await res.json());
+  }catch(e){
+    mostrarErro('Não foi possível conectar à API em '+API+'. Verifique se o servidor (node server.js) está rodando.');
+  }
+}
+
+function renderTabela(ordens){
+  const tbody = document.getElementById('tbodyOrdens');
+  tbody.innerHTML = '';
+  if(!ordens.length){
+    tbody.innerHTML = '<tr><td colspan="9" class="vazio">Nenhuma ordem cadastrada ainda.</td></tr>';
+    return;
+  }
+  ordens.forEach(o=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="codigo">${o.codigoOrdem}</td><td>${o.codigoProduto}</td><td>${nomeTipo(o.tipoProduto)}</td>
+      <td>${o.quantidadeProduzida}</td><td>${o.estoqueFinal}</td>
+      <td>R$ ${o.custoUnitarioAjustado.toFixed(2)}</td><td>R$ ${o.custoTotal.toFixed(2)}</td>
+      <td><span class="badge badge-${o.alertaEstoque.toLowerCase()}">${o.alertaEstoque}</span></td>
+      <td><button class="btn-icon" title="Editar" onclick='editarOrdem(${JSON.stringify(o)})'>edita</button>
+      <button class="btn-icon" title="Excluir" onclick="excluirOrdem('${o.codigoOrdem}')">exclui</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById('formOrdem').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const corpo = {
+    codigoOrdem: document.getElementById('codigoOrdem').value,
+    codigoProduto: document.getElementById('codigoProduto').value,
+    tipoProduto: Number(document.getElementById('tipoProduto').value),
+    quantidadeProduzida: Number(document.getElementById('quantidadeProduzida').value),
+    custoUnitarioBase: Number(document.getElementById('custoUnitarioBase').value),
+    estoqueInicial: Number(document.getElementById('estoqueInicial').value)
+  };
+  try{
+    const url = editando ? API+'/ordens/'+editando : API+'/ordens';
+    const res = await fetch(url, {
+      method: editando ? 'PUT' : 'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(corpo)
+    });
+    const dados = await res.json();
+    if(!res.ok){ mostrarErro(dados.erro || 'Erro ao salvar a ordem.'); return; }
+    cancelarEdicao();
+    carregarOrdens();
+  }catch(e){
+    mostrarErro('Não foi possível conectar à API em '+API+'.');
+  }
+});
+
+function editarOrdem(o){
+  editando = o.codigoOrdem;
+  document.getElementById('codigoOrdem').value = o.codigoOrdem;
+  document.getElementById('codigoOrdem').disabled = true;
+  document.getElementById('codigoProduto').value = o.codigoProduto;
+  document.getElementById('tipoProduto').value = o.tipoProduto;
+  document.getElementById('quantidadeProduzida').value = o.quantidadeProduzida;
+  document.getElementById('custoUnitarioBase').value = o.custoUnitarioBase;
+  document.getElementById('estoqueInicial').value = o.estoqueInicial;
+  document.getElementById('tituloForm').textContent = 'Editar ordem '+o.codigoOrdem;
+  document.getElementById('btnSalvar').textContent = 'Atualizar ordem';
+  document.getElementById('btnCancelar').classList.remove('escondido');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function cancelarEdicao(){
+  editando = null;
+  document.getElementById('formOrdem').reset();
+  document.getElementById('codigoOrdem').disabled = false;
+  document.getElementById('tituloForm').textContent = 'Nova ordem de produção';
+  document.getElementById('btnSalvar').textContent = 'Cadastrar ordem';
+  document.getElementById('btnCancelar').classList.add('escondido');
+}
+
+async function excluirOrdem(codigo){
+  if(!confirm('Excluir a ordem '+codigo+'?')) return;
+  try{
+    await fetch(API+'/ordens/'+codigo, {method:'DELETE'});
+    carregarOrdens();
+  }catch(e){
+    mostrarErro('Não foi possível conectar à API em '+API+'.');
+  }
+}
+
+async function carregarRelatorio(){
+  try{
+    const res = await fetch(API+'/relatorios/ordens');
+    renderRelatorio(await res.json());
+  }catch(e){
+    mostrarErro('Não foi possível carregar o relatório.');
+  }
+}
+
+function renderRelatorio(r){
+  document.getElementById('relatorioBox').classList.remove('escondido');
+  document.getElementById('totalOrdens').textContent = r.totalOrdens;
+  document.getElementById('mediaCusto').textContent = 'R$ '+r.mediaCustoTotalPorOrdem.toFixed(2);
+  document.getElementById('estoquePadrao').textContent = r.estoquePorTipo.padrao;
+  document.getElementById('estoquePremium').textContent = r.estoquePorTipo.premium;
+  document.getElementById('estoqueSobEncomenda').textContent = r.estoquePorTipo.sobEncomenda;
+  document.getElementById('alertaAlto').textContent = r.quantidadeAlertas.alto;
+  document.getElementById('alertaCritico').textContent = r.quantidadeAlertas.critico;
+  document.getElementById('alertaNormal').textContent = r.quantidadeAlertas.normal;
+  document.getElementById('maisCara').textContent = r.ordemMaisCara ? r.ordemMaisCara.codigoOrdem+' (R$ '+r.ordemMaisCara.custoTotal.toFixed(2)+')' : '-';
+  document.getElementById('maisBarata').textContent = r.ordemMaisBarata ? r.ordemMaisBarata.codigoOrdem+' (R$ '+r.ordemMaisBarata.custoTotal.toFixed(2)+')' : '-';
+  const tbody = document.getElementById('tbodyProdutos');
+  tbody.innerHTML = '';
+  Object.entries(r.porProduto).forEach(([produto,dados])=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${produto}</td><td>${dados.estoqueFinalConsolidado}</td><td>R$ ${dados.valorTotalInvestido.toFixed(2)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+carregarOrdens();
+</script>
+</body>
+</html>
